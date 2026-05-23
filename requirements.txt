@@ -1,0 +1,8 @@
+pandas
+sqlalchemy
+mysql-connector-python
+loguru
+python-dotenv
+
+-- Run inside command terminal:
+-- pip install -r requirements.txt
