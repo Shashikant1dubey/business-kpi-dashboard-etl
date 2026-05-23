@@ -1,4 +1,5 @@
 CREATE DATABASE sales_warehouse;
+CREATE DATABASE sales_warehouse;
 
 # STEP 6 — CREATE STAR SCHEMA
 
