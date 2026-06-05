@@ -1,6 +1,5 @@
 # STEP 10 — ADD BASIC SETUP
 from pathlib import Path
-from pickle import loads
 from loguru import logger
 from dotenv import load_dotenv
 
@@ -30,10 +29,6 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
 FAILED_DIR.mkdir(parents=True, exist_ok=True)
 
-# WHY?
-# This creates folders automatically if missing.
-
-
 # STEP 13 — SETUP LOGGING
 logger.add(
     LOG_DIR / "etl.log",
@@ -42,11 +37,6 @@ logger.add(
 
 logger.info("Pipeline Started")
 
-# WHAT IS LOGGING?
-# Imagine CCTV camera for your pipeline.
-# It records everything.
-
-
 # STEP 14 — CONNECT MYSQL
 engine = create_engine(
     f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DATABASE}"
@@ -54,33 +44,35 @@ engine = create_engine(
 
 # STEP 15 — DETECT FILES
 files = list(RAW_DIR.glob("*.csv"))
+
 logger.info(f"Files Found: {len(files)}")
 
-# WHAT THIS DOES
-# Looks inside:
-#               data/raw
-# and finds CSV files automatically.
-
-
-# STEP 16 — READ FILE ONE BY ONE
+# STEP 16 — PROCESS FILES
 for file in files:
 
     try:
 
         logger.info(f"Processing {file.name}")
 
+        # READ CSV
         df = pd.read_csv(
             file,
             encoding='latin1'
         )
 
-# STEP 17 — CLEAN DATA
-
+        # STEP 17 — CLEAN COLUMN NAMES
         df.columns = [
-            col.strip().replace(" ", "_").lower()
+            col.strip()
+            .replace(" ", "_")
+            .replace("-", "_")
+            .replace("/", "_")
+            .lower()
             for col in df.columns
-        ]    
-# STEP 18 — FIX DATES
+        ]
+
+        logger.info("Column names cleaned")
+
+        # STEP 18 — FIX DATES
         df['order_date'] = pd.to_datetime(
             df['order_date'],
             errors='coerce'
@@ -91,7 +83,9 @@ for file in files:
             errors='coerce'
         )
 
-# STEP 19 — LOAD ONLY NEW ROWS 
+        logger.info("Date columns fixed")
+
+        # STEP 19 — GET LAST LOADED ROW
         control_query = """
         SELECT last_loaded_row_id
         FROM etl_control
@@ -99,26 +93,33 @@ for file in files:
         LIMIT 1
         """
 
-        last_row_id = pd.read_sql(
+        control_df = pd.read_sql(
             control_query,
             engine
-        ).iloc[0,0] 
+        )
 
-# Filter only new rows         
+        # HANDLE EMPTY CONTROL TABLE
+        if control_df.empty:
+
+            last_row_id = 0
+
+        else:
+
+            last_row_id = control_df.iloc[0, 0]
+
+            if pd.isna(last_row_id):
+                last_row_id = 0
+
+        logger.info(f"Last Loaded Row ID: {last_row_id}")
+
+        # FILTER ONLY NEW RECORDS
         df = df[
             df['row_id'] > last_row_id
         ]
 
-# WHAT THIS DOES
+        logger.info(f"New Rows Found: {len(df)}")
 
-# If last loaded row was: 9800
-# then:
-#         9801 loads
-#         9802 loads
-#         older rows ignored
-# VERY FAST.
-
-# ✅ CHECK EMPTY DATAFRAME
+        # STEP 20 — HANDLE EMPTY DATAFRAME
         if df.empty:
 
             logger.warning(
@@ -126,6 +127,7 @@ for file in files:
             )
 
             archive_path = ARCHIVE_DIR / file.name
+
             file.rename(archive_path)
 
             logger.info(
@@ -134,15 +136,12 @@ for file in files:
 
             continue
 
-# STEP 20 — ADD SOURCE FILE
-
+        # STEP 21 — ADD SOURCE FILE
         df['source_file'] = file.name
 
-
-# STEP 21 — LOAD FACT TABLE
-
+        # STEP 22 — LOAD DATA INTO MYSQL
         df.to_sql(
-            "fact_sales",
+            "sales_raw",
             engine,
             if_exists="append",
             index=False,
@@ -150,31 +149,200 @@ for file in files:
             method="multi"
         )
 
-# STEP 22 — UPDATE CONTROL TABLE
-        max_row_id = df['row_id'].max()
+        logger.success(
+            f"{len(df)} rows loaded into sales_raw"
+        )
+
+        # ==================================================
+        # STEP 23 — LOAD DIMENSION TABLES
+        # ==================================================
 
         with engine.begin() as connection:
+
+            # DIM CUSTOMER
+            connection.execute(text("""
+
+                INSERT IGNORE INTO dim_customer (
+
+                    customer_id,
+                    customer_name,
+                    segment
+
+                )
+
+                SELECT
+
+                    customer_id,
+                    MAX(customer_name),
+                    MAX(segment)
+
+                FROM sales_raw
+
+                GROUP BY customer_id
+
+            """))
+
+            logger.info("dim_customer loaded")
+
+
+            # DIM PRODUCT
+            connection.execute(text("""
+
+                INSERT IGNORE INTO dim_product (
+
+                    product_id,
+                    category,
+                    sub_category,
+                    product_name
+
+                )
+
+                SELECT
+
+                    product_id,
+                    MAX(category),
+                    MAX(sub_category),
+                    MAX(product_name)
+
+                FROM sales_raw
+
+                GROUP BY product_id
+
+            """))
+
+            logger.info("dim_product loaded")
+
+
+            # DIM REGION
+            connection.execute(text("""
+
+                INSERT IGNORE INTO dim_region (
+
+                    country,
+                    state,
+                    city,
+                    region,
+                    postal_code
+
+                )
+
+                SELECT DISTINCT
+
+                    country,
+                    state,
+                    city,
+                    region,
+                    postal_code
+
+                FROM sales_raw
+
+            """))
+
+            logger.info("dim_region loaded")
+
+
+            # DIM DATE
+            connection.execute(text("""
+
+                INSERT IGNORE INTO dim_date (
+
+                    order_date,
+                    year,
+                    month,
+                    month_name,
+                    quarter
+
+                )
+
+                SELECT DISTINCT
+
+                    order_date,
+                    YEAR(order_date),
+                    MONTH(order_date),
+                    MONTHNAME(order_date),
+                    QUARTER(order_date)
+
+                FROM sales_raw
+
+                WHERE order_date IS NOT NULL
+
+            """))
+
+            logger.info("dim_date loaded")
+
+        # ==================================================
+        # STEP 24 — LOAD FACT TABLE
+        # ==================================================
+
+        with engine.begin() as connection:
+
+            # FACT SALES
+            connection.execute(text("""
+
+                INSERT IGNORE INTO fact_sales (
+
+                    row_id,
+                    order_id,
+                    order_date,
+                    ship_date,
+                    customer_id,
+                    product_id,
+                    postal_code,
+                    sales,
+                    source_file
+
+                )
+
+                SELECT
+
+                    row_id,
+                    order_id,
+                    order_date,
+                    ship_date,
+                    customer_id,
+                    product_id,
+                    postal_code,
+                    sales,
+                    source_file
+
+                FROM sales_raw;
+
+            """))
+
+        logger.success("fact_sales loaded")
+
+        # STEP 23 — UPDATE CONTROL TABLE
+        max_row_id = int(df['row_id'].max())
+
+        with engine.begin() as connection:
+
             connection.execute(
                 text("""
-            UPDATE etl_control
-            SET
-                last_loaded_row_id = :row_id,
-                last_run = NOW()
-            WHERE id = 1
-        """),
-        {"row_id": int(max_row_id)}
-    )
-        logger.info(f"ETL Control Updated: {max_row_id}")
+                    UPDATE etl_control
+                    SET
+                        last_loaded_row_id = :row_id,
+                        last_run = NOW()
+                    WHERE id = 1
+                """),
+                {
+                    "row_id": max_row_id
+                }
+            )
 
+        logger.info(
+            f"ETL Control Updated: {max_row_id}"
+        )
 
-# STEP 23 — MOVE FILE TO ARCHIVE
+        # STEP 24 — MOVE FILE TO ARCHIVE
         archive_path = ARCHIVE_DIR / file.name
 
         file.rename(archive_path)
 
-        logger.success(f"{file.name} archived")
+        logger.success(
+            f"{file.name} archived successfully"
+        )
 
-# STEP 24 — HANDLE ERRORS
+    # STEP 25 — ERROR HANDLING
     except Exception as e:
 
         logger.error(str(e))
@@ -183,16 +351,9 @@ for file in files:
 
         file.rename(failed_path)
 
-# WHAT THIS DOES
-# If file breaks:
-#    move to failed folder
-#    pipeline continues
-# This is REAL production behavior.  
- 
+        logger.error(
+            f"{file.name} moved to failed folder"
+        )
 
-# STEP 25 — RUN PIPELINE
-# Go to root:
-# cd "C:\Users\shash\Documents\Project\Business_KPI_Dashboard"
-
-# Run:
-# python .\scripts\etl_pipeline.py
+# STEP 26 — PIPELINE END
+logger.success("Pipeline Completed")

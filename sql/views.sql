@@ -1,7 +1,7 @@
 -- ============================================
 -- FILE: views.sql
 -- PURPOSE:
--- Analytical reporting views
+-- Analytical Reporting Views
 -- ============================================
 
 USE business_kpi_dw;
@@ -15,9 +15,12 @@ CREATE OR REPLACE VIEW vw_sales_summary AS
 SELECT
 
     d.year,
+
+    d.month,
+
     d.month_name,
 
-    SUM(f.sales) AS total_sales,
+    ROUND(SUM(f.sales),2) AS total_sales,
 
     COUNT(DISTINCT f.order_id) AS total_orders,
 
@@ -26,10 +29,12 @@ SELECT
 FROM fact_sales f
 
 LEFT JOIN dim_date d
-ON f.order_date = d.date_id
+ON f.order_date = d.order_date
 
 GROUP BY
+
     d.year,
+    d.month,
     d.month_name;
 
 -- ============================================
@@ -41,16 +46,21 @@ CREATE OR REPLACE VIEW vw_region_sales AS
 SELECT
 
     r.region,
+
     r.state,
 
-    SUM(f.sales) AS total_sales
+    ROUND(SUM(f.sales),2) AS total_sales
 
 FROM fact_sales f
 
+LEFT JOIN sales_raw sr
+ON f.row_id = sr.row_id
+
 LEFT JOIN dim_region r
-ON f.postal_code = r.postal_code
+ON sr.postal_code = r.postal_code
 
 GROUP BY
+
     r.region,
     r.state;
 
@@ -63,10 +73,12 @@ CREATE OR REPLACE VIEW vw_product_performance AS
 SELECT
 
     p.category,
+
     p.sub_category,
+
     p.product_name,
 
-    SUM(f.sales) AS total_sales
+    ROUND(SUM(f.sales),2) AS total_sales
 
 FROM fact_sales f
 
@@ -74,6 +86,7 @@ LEFT JOIN dim_product p
 ON f.product_id = p.product_id
 
 GROUP BY
+
     p.category,
     p.sub_category,
     p.product_name;
@@ -88,7 +101,7 @@ SELECT
 
     c.segment,
 
-    SUM(f.sales) AS total_sales,
+    ROUND(SUM(f.sales),2) AS total_sales,
 
     COUNT(DISTINCT f.customer_id) AS total_customers
 

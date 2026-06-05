@@ -1,99 +1,116 @@
 -- ============================================
 -- FILE: warehouse.sql
 -- PURPOSE:
--- Populate Data Warehouse Tables
+-- Load Dimension & Fact Tables
 -- ============================================
 
 USE business_kpi_dw;
 
 -- ============================================
--- LOAD DIM CUSTOMER
+-- LOAD CUSTOMER DIMENSION
 -- ============================================
 
 INSERT IGNORE INTO dim_customer (
+
     customer_id,
     customer_name,
     segment
+
 )
-SELECT DISTINCT
+
+SELECT
+
     customer_id,
-    customer_name,
-    segment
-FROM sales_raw;
+    MAX(customer_name),
+    MAX(segment)
+
+FROM sales_raw
+
+GROUP BY customer_id;
 
 -- ============================================
--- LOAD DIM PRODUCT
+-- LOAD PRODUCT DIMENSION
 -- ============================================
 
 INSERT IGNORE INTO dim_product (
+
     product_id,
     category,
     sub_category,
     product_name
+
 )
-SELECT DISTINCT
+
+SELECT
+
     product_id,
-    category,
-    sub_category,
-    product_name
-FROM sales_raw;
+    MAX(category),
+    MAX(sub_category),
+    MAX(product_name)
+
+FROM sales_raw
+
+GROUP BY product_id;
 
 -- ============================================
--- LOAD DIM REGION
+-- LOAD REGION DIMENSION
 -- ============================================
 
-INSERT INTO dim_region (
+INSERT IGNORE INTO dim_region (
+
     country,
     state,
     city,
     region,
     postal_code
+
 )
+
 SELECT DISTINCT
+
     country,
     state,
     city,
     region,
     postal_code
+
 FROM sales_raw;
 
 -- ============================================
--- LOAD DIM DATE
+-- LOAD DATE DIMENSION
 -- ============================================
 
 INSERT IGNORE INTO dim_date (
-    date_id,
-    year,
-    quarter,
-    month,
-    month_name,
-    day,
-    weekday_name
-)
-SELECT DISTINCT
 
     order_date,
+    year,
+    month,
+    month_name,
+    quarter
+
+)
+
+SELECT DISTINCT
+
+    DATE(order_date),
 
     YEAR(order_date),
-
-    QUARTER(order_date),
 
     MONTH(order_date),
 
     MONTHNAME(order_date),
 
-    DAY(order_date),
-
-    DAYNAME(order_date)
+    QUARTER(order_date)
 
 FROM sales_raw
+
 WHERE order_date IS NOT NULL;
 
 -- ============================================
 -- LOAD FACT SALES
 -- ============================================
 
-INSERT INTO fact_sales (
+INSERT IGNORE INTO fact_sales (
 
     row_id,
     order_id,
@@ -101,23 +118,27 @@ INSERT INTO fact_sales (
     ship_date,
     customer_id,
     product_id,
-    ship_mode,
     sales,
-    postal_code,
     source_file
 
 )
+
 SELECT
 
     row_id,
+
     order_id,
-    order_date,
-    ship_date,
+
+    DATE(order_date),
+
+    DATE(ship_date),
+
     customer_id,
+
     product_id,
-    ship_mode,
+
     sales,
-    postal_code,
+
     source_file
 
 FROM sales_raw;

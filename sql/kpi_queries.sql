@@ -11,7 +11,9 @@ USE business_kpi_dw;
 -- ============================================
 
 SELECT
+
     ROUND(SUM(sales),2) AS total_sales
+
 FROM fact_sales;
 
 -- ============================================
@@ -19,7 +21,9 @@ FROM fact_sales;
 -- ============================================
 
 SELECT
+
     COUNT(DISTINCT order_id) AS total_orders
+
 FROM fact_sales;
 
 -- ============================================
@@ -27,7 +31,9 @@ FROM fact_sales;
 -- ============================================
 
 SELECT
+
     COUNT(DISTINCT customer_id) AS total_customers
+
 FROM fact_sales;
 
 -- ============================================
@@ -37,9 +43,12 @@ FROM fact_sales;
 SELECT
 
     ROUND(
+
         SUM(sales) /
         COUNT(DISTINCT order_id),
+
         2
+
     ) AS avg_order_value
 
 FROM fact_sales;
@@ -77,8 +86,11 @@ SELECT
 
 FROM fact_sales f
 
+LEFT JOIN sales_raw sr
+ON f.row_id = sr.row_id
+
 LEFT JOIN dim_region r
-ON f.postal_code = r.postal_code
+ON sr.postal_code = r.postal_code
 
 GROUP BY r.state
 
@@ -108,6 +120,9 @@ GROUP BY p.category;
 SELECT
 
     d.year,
+
+    d.month,
+
     d.month_name,
 
     ROUND(SUM(f.sales),2) AS total_sales
@@ -115,13 +130,16 @@ SELECT
 FROM fact_sales f
 
 LEFT JOIN dim_date d
-ON f.order_date = d.date_id
+ON f.order_date = d.order_date
 
 GROUP BY
+
     d.year,
+    d.month,
     d.month_name
 
 ORDER BY
+
     d.year,
     d.month;
 
@@ -157,3 +175,75 @@ FROM fact_sales
 GROUP BY order_date
 
 ORDER BY order_date;
+
+-- ============================================
+-- TOP 5 CUSTOMERS
+-- ============================================
+
+SELECT
+
+    c.customer_name,
+
+    ROUND(SUM(f.sales),2) AS total_sales
+
+FROM fact_sales f
+
+LEFT JOIN dim_customer c
+ON f.customer_id = c.customer_id
+
+GROUP BY c.customer_name
+
+ORDER BY total_sales DESC
+
+LIMIT 5;
+
+-- ============================================
+-- REGION WISE SALES
+-- ============================================
+
+SELECT
+
+    r.region,
+
+    ROUND(SUM(f.sales),2) AS total_sales
+
+FROM fact_sales f
+
+LEFT JOIN sales_raw sr
+ON f.row_id = sr.row_id
+
+LEFT JOIN dim_region r
+ON sr.postal_code = r.postal_code
+
+GROUP BY r.region
+
+ORDER BY total_sales DESC;
+
+-- ============================================
+-- YEARLY SALES TREND
+-- ============================================
+
+SELECT
+
+    d.year,
+
+    ROUND(SUM(f.sales),2) AS yearly_sales
+
+FROM fact_sales f
+
+LEFT JOIN dim_date d
+ON f.order_date = d.order_date
+
+GROUP BY d.year
+
+ORDER BY d.year;
+
+-- ============================================
+-- TOTAL PRODUCTS SOLD
+-- ============================================
+
+SELECT
+
+    COUNT(DISTINCT product_id) AS total_products
+
+FROM fact_sales;
