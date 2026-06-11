@@ -1,0 +1,16 @@
+{
+  "name": "Executive Professional",
+  "dataColors": [
+    "#2563EB",
+    "#16A34A",
+    "#F59E0B",
+    "#DC2626",
+    "#7C3AED",
+    "#0891B2",
+    "#EA580C",
+    "#4B5563"
+  ],
+  "background": "#F8FAFC",
+  "foreground": "#1F2937",
+  "tableAccent": "#2563EB"
+}
