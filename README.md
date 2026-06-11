@@ -456,10 +456,11 @@ This solution demonstrates how organizations can:
 
 # assets/
 
-![assets](assets/Dynamic Sales Report + Tooltip.jpg)
-![assets](assets/Regional_Analytics.jpg)
-![assets](assets/DrillthroughProduct_Analytics.jpg)
-
+![assets](assets/Pipeline_completed.jpg)
+![assets](assets/Dynamic_Sales_Report_&_Tooltip.jpg)
+![assets](assets/Drillthrough.jpg)
+![assets](assets/Product_details.jpg)
+![assets](assets/Sales_Analytics_Report.jpg)
 
 ## Executive Overview
 
@@ -471,6 +472,9 @@ This solution demonstrates how organizations can:
 
 ## Customer Analysis
 ![assets](assets/Customer_analytics.jpg)
+
+## Regional Analysis
+![assets](assets/Regional_Analytics.jpg)
 
 -----
 
