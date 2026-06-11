@@ -1,4 +1,3 @@
-Python | MySQL | Power BI | SQL | ETL | Data Warehouse
 ![Python](https://img.shields.io/badge/Python-3.12-blue)
 
 ![MySQL](https://img.shields.io/badge/MySQL-Database-orange)
@@ -82,7 +81,13 @@ The solution demonstrates an end-to-end analytics workflow, from raw CSV files t
 
 ```
 Business-KPI-Dashboard-Pro/
-
+│
+├── assets/
+│   ├── architecture.png
+│   ├── schema.png
+│   ├── dashboard_overview.png
+│   ├── dashboard_page2.png
+│   └── dashboard_page3.png
 │
 ├── config/
 │
@@ -91,7 +96,13 @@ Business-KPI-Dashboard-Pro/
 │   ├── archive/
 │   └── failed/
 │
+├── sample_data/
+│   └── sample_sales.csv
+│
 ├── logs/
+│
+├── powerbi/
+│   └── Business_KPI_Dashboard.pbix
 │
 ├── scripts/
 │   └── etl_pipeline.py
@@ -102,12 +113,10 @@ Business-KPI-Dashboard-Pro/
 │   ├── views.sql
 │   └── kpi_queries.sql
 │
-├── powerbi/
-│   └── Business_KPI_Dashboard.pbix
-│
 ├── requirements.txt
-│
-└── README.md
+├── LICENSE
+├── README.md
+└── .gitignore
 ```
 
 ---
